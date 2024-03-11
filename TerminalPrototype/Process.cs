@@ -47,35 +47,54 @@ namespace Terminal
             try
             {
                 var options = args.Where(x => x.StartsWith("-")).Distinct().OrderBy(o => o == "-E").ToList();
-                var files = args.Except(options).ToArray();
+                var anotherOptions = args.Except(options).ToList();
+
+                var files = new List<string>();
+                foreach (var opt in anotherOptions)
+                {
+                    if (opt == ">")
+                    {
+                        files.Add(opt);
+                        continue;
+                    }
+
+                    var partPath = $"{CurrentDirectory}\\{opt}";
+                    if (File.Exists(opt))
+                        files.Add(new FileInfo(opt).FullName);
+                    else if (File.Exists(partPath))
+                        files.Add(new FileInfo(partPath).FullName);
+                }             
 
                 var readFileGroup = files.TakeWhile(x => x != ">").ToArray();
                 var writeFileGroup = files.SkipWhile(x => x != ">").Skip(1).ToArray();
 
-                string text;
+                string text="";
 
                 if (!readFileGroup.Any())
                 {
-                    var inputText = new StringBuilder();
-                    var key = Console.ReadKey();
-                    while (key.KeyChar != '\x04')
+                    if (writeFileGroup.Any())
                     {
-                        if (key.Key == ConsoleKey.Enter)
+                        var inputText = new StringBuilder();
+                        var key = Console.ReadKey();
+                        while (key.KeyChar != '\x04')
                         {
-                            Console.WriteLine();
-                            inputText.Append('\n');
+                            if (key.Key == ConsoleKey.Enter)
+                            {
+                                Console.WriteLine();
+                                inputText.Append('\n');
+                            }
+
+                            else
+                                inputText.Append(key.KeyChar);
+                            key = Console.ReadKey();
                         }
 
-                        else
-                            inputText.Append(key.KeyChar);
-                        key = Console.ReadKey();
+                        Console.WriteLine();
+                        text = inputText.ToString();
                     }
-
-                    Console.WriteLine();
-                    text = inputText.ToString();
                 }
                 else
-                    text = string.Join("", readFileGroup.Select(filename => File.ReadAllText($"{CurrentDirectory}\\{filename}")));
+                    text = string.Join("", readFileGroup.Select(File.ReadAllText));
 
                 if (options.Contains("-n") && options.Contains("-b")) options.Remove("-b");
 
@@ -96,7 +115,7 @@ namespace Terminal
                 {
                     foreach (var filename in writeFileGroup)
                     {
-                        using var writeText = new StreamWriter($"{CurrentDirectory}\\{filename}");
+                        using var writeText = new StreamWriter(filename);
                         writeText.Write(text);
                     }
                     return null;
