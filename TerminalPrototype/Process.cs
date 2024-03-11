@@ -1,4 +1,6 @@
-﻿namespace Terminal
+﻿using System.Text;
+
+namespace Terminal
 {
     enum Commands { cat, cd, ls }
     public class Process
@@ -47,7 +49,33 @@
                 var options = args.Where(x => x.StartsWith("-")).Distinct().OrderBy(o => o == "-E").ToList();
                 var files = args.Except(options).ToArray();
 
-                var text = string.Join("\n", files.Select(filename => File.ReadAllText($"{CurrentDirectory}/{filename}")));
+                var readFileGroup = files.TakeWhile(x => x != ">").ToArray();
+                var writeFileGroup = files.SkipWhile(x => x != ">").Skip(1).ToArray();
+
+                string text;
+
+                if (!readFileGroup.Any())
+                {
+                    var inputText = new StringBuilder();
+                    var key = Console.ReadKey();
+                    while (key.KeyChar != '\x04')
+                    {
+                        if (key.Key == ConsoleKey.Enter)
+                        {
+                            Console.WriteLine();
+                            inputText.Append('\n');
+                        }
+
+                        else
+                            inputText.Append(key.KeyChar);
+                        key = Console.ReadKey();
+                    }
+
+                    Console.WriteLine();
+                    text = inputText.ToString();
+                }
+                else
+                    text = string.Join("", readFileGroup.Select(filename => File.ReadAllText($"{CurrentDirectory}\\{filename}")));
 
                 if (options.Contains("-n") && options.Contains("-b")) options.Remove("-b");
 
@@ -57,14 +85,24 @@
                     {
                         "-T" => text.Replace("\t", "^|"),
                         "-E" => text.Replace("\n", "\n$"),
-                        "-b" => string.Join("\n", text.Split("\n").Select((x, i) => string.IsNullOrEmpty(x) ? x : $"  {i + 1} {x}").ToArray()),
-                        "-n" => string.Join("\n", text.Split("\n").Select((x, i) => $"  {i + 1} {x}").ToArray()),
+                        "-b" => string.Join("\n", text.Split("\n").Select((x, i) => string.IsNullOrEmpty(x) ? x : $"     {i + 1} {x}").ToArray()),
+                        "-n" => string.Join("\n", text.Split("\n").Select((x, i) => $"     {i + 1} {x}").ToArray()),
                         "-s" => string.Join("\n", text.Split("\n").Distinct().ToArray()),
                         string => ""
                     };
                 }
 
-                return !string.IsNullOrEmpty(text) ? text : defaultText;
+                if (writeFileGroup.Any())
+                {
+                    foreach (var filename in writeFileGroup)
+                    {
+                        using var writeText = new StreamWriter($"{CurrentDirectory}\\{filename}");
+                        writeText.Write(text);
+                    }
+                    return null;
+                }
+
+                return !string.IsNullOrEmpty(text) ? $"{text}%" : defaultText;
             }
             catch (Exception)
             {
