@@ -6,7 +6,8 @@ namespace Terminal
     {
         public static void Main()
         {
-            new Process().Start();
+            Directory.SetCurrentDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            new Process().HandleCommand();
         }
     }
 }
